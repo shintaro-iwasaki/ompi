@@ -26,11 +26,13 @@
 #ifndef OPAL_MCA_THREADS_PTHREADS_THREADS_PTHREADS_WAIT_SYNC_H
 #define OPAL_MCA_THREADS_PTHREADS_THREADS_PTHREADS_WAIT_SYNC_H
 
+#include "opal/mca/threads/pthreads/threads_pthreads_mutex.h"
+
 typedef struct ompi_wait_sync_t {
     opal_atomic_int32_t count;
     int32_t status;
-    pthread_cond_t condition;
-    pthread_mutex_t lock;
+    opal_thread_internal_cond_t condition;
+    opal_thread_internal_mutex_t lock;
     struct ompi_wait_sync_t *next;
     struct ompi_wait_sync_t *prev;
     volatile bool signaling;
@@ -46,27 +48,27 @@ typedef struct ompi_wait_sync_t {
  * as possible. Note that the race window is small so spinning here
  * is more optimal than sleeping since this macro is called in
  * the critical path. */
-#define WAIT_SYNC_RELEASE(sync)                   \
-    if (opal_using_threads()) {                   \
-        while ((sync)->signaling) {               \
-            continue;                             \
-        }                                         \
-        pthread_cond_destroy(&(sync)->condition); \
-        pthread_mutex_destroy(&(sync)->lock);     \
+#define WAIT_SYNC_RELEASE(sync)                                \
+    if (opal_using_threads()) {                                \
+        while ((sync)->signaling) {                            \
+            continue;                                          \
+        }                                                      \
+        opal_thread_internal_cond_destroy(&(sync)->condition); \
+        opal_thread_internal_mutex_destroy(&(sync)->lock);     \
     }
 
-#define WAIT_SYNC_RELEASE_NOWAIT(sync)            \
-    if (opal_using_threads()) {                   \
-        pthread_cond_destroy(&(sync)->condition); \
-        pthread_mutex_destroy(&(sync)->lock);     \
+#define WAIT_SYNC_RELEASE_NOWAIT(sync)                         \
+    if (opal_using_threads()) {                                \
+        opal_thread_internal_cond_destroy(&(sync)->condition); \
+        opal_thread_internal_mutex_destroy(&(sync)->lock);     \
     }
 
-#define WAIT_SYNC_SIGNAL(sync)                 \
-    if (opal_using_threads()) {                \
-        pthread_mutex_lock(&(sync->lock));     \
-        pthread_cond_signal(&sync->condition); \
-        pthread_mutex_unlock(&(sync->lock));   \
-        sync->signaling = false;               \
+#define WAIT_SYNC_SIGNAL(sync)                              \
+    if (opal_using_threads()) {                             \
+        opal_thread_internal_mutex_lock(&(sync->lock));     \
+        opal_thread_internal_cond_signal(&sync->condition); \
+        opal_thread_internal_mutex_unlock(&(sync->lock));   \
+        sync->signaling = false;                            \
     }
 
 #define WAIT_SYNC_SIGNALLED(sync)  \
@@ -92,17 +94,17 @@ static inline int sync_wait_st(ompi_wait_sync_t *sync)
     return sync->status;
 }
 
-#define WAIT_SYNC_INIT(sync, c)                          \
-    do {                                                 \
-        (sync)->count = (c);                             \
-        (sync)->next = NULL;                             \
-        (sync)->prev = NULL;                             \
-        (sync)->status = 0;                              \
-        (sync)->signaling = (0 != (c));                  \
-        if (opal_using_threads()) {                      \
-            pthread_cond_init(&(sync)->condition, NULL); \
-            pthread_mutex_init(&(sync)->lock, NULL);     \
-        }                                                \
+#define WAIT_SYNC_INIT(sync, c)                                    \
+    do {                                                           \
+        (sync)->count = (c);                                       \
+        (sync)->next = NULL;                                       \
+        (sync)->prev = NULL;                                       \
+        (sync)->status = 0;                                        \
+        (sync)->signaling = (0 != (c));                            \
+        if (opal_using_threads()) {                                \
+            opal_thread_internal_cond_init(&(sync)->condition);    \
+            opal_thread_internal_mutex_init(&(sync)->lock, false); \
+        }                                                          \
     } while (0)
 
 /**

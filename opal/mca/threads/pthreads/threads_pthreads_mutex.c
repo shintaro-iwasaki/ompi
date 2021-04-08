@@ -40,38 +40,40 @@ bool opal_uses_threads = false;
 
 static void mca_threads_pthreads_mutex_constructor(opal_mutex_t *p_mutex)
 {
-    pthread_mutex_init(&p_mutex->m_lock_pthread, NULL);
 #if OPAL_ENABLE_DEBUG
+    int ret = opal_thread_internal_mutex_init(&p_mutex->m_lock_pthread, false);
+    assert(0 == ret);
     p_mutex->m_lock_debug = 0;
     p_mutex->m_lock_file = NULL;
     p_mutex->m_lock_line = 0;
+#else
+    opal_thread_internal_mutex_init(&p_mutex->m_lock_pthread, false);
 #endif
     opal_atomic_lock_init(&p_mutex->m_lock_atomic, 0);
 }
 
 static void mca_threads_pthreads_mutex_destructor(opal_mutex_t *p_mutex)
 {
-    pthread_mutex_destroy(&p_mutex->m_lock_pthread);
+    opal_thread_internal_mutex_destroy(&p_mutex->m_lock_pthread);
 }
 
 static void mca_threads_pthreads_recursive_mutex_constructor(opal_recursive_mutex_t *p_mutex)
 {
-    pthread_mutexattr_t mutex_attr;
-    pthread_mutexattr_init(&mutex_attr);
-    pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&p_mutex->m_lock_pthread, &mutex_attr);
-    pthread_mutexattr_destroy(&mutex_attr);
 #if OPAL_ENABLE_DEBUG
+    int ret = opal_thread_internal_mutex_init(&p_mutex->m_lock_pthread, true);
+    assert(0 == ret);
     p_mutex->m_lock_debug = 0;
     p_mutex->m_lock_file = NULL;
     p_mutex->m_lock_line = 0;
+#else
+    opal_thread_internal_mutex_init(&p_mutex->m_lock_pthread, true);
 #endif
     opal_atomic_lock_init(&p_mutex->m_lock_atomic, 0);
 }
 
 static void mca_threads_pthreads_recursive_mutex_destructor(opal_recursive_mutex_t *p_mutex)
 {
-    pthread_mutex_destroy(&p_mutex->m_lock_pthread);
+    opal_thread_internal_mutex_destroy(&p_mutex->m_lock_pthread);
 }
 
 OBJ_CLASS_INSTANCE(opal_mutex_t, opal_object_t, mca_threads_pthreads_mutex_constructor,
@@ -83,30 +85,29 @@ OBJ_CLASS_INSTANCE(opal_recursive_mutex_t, opal_object_t,
 
 int opal_cond_init(opal_cond_t *cond)
 {
-    int ret = pthread_cond_init(cond, NULL);
-    return 0 == ret ? OPAL_SUCCESS : OPAL_ERR_IN_ERRNO;
+    return opal_thread_internal_cond_init(cond);
 }
 
 int opal_cond_wait(opal_cond_t *cond, opal_mutex_t *lock)
 {
-    int ret = pthread_cond_wait(cond, &lock->m_lock_pthread);
-    return 0 == ret ? OPAL_SUCCESS : OPAL_ERR_IN_ERRNO;
+    opal_thread_internal_cond_wait(cond, &lock->m_lock_pthread);
+    return OPAL_SUCCESS;
 }
 
 int opal_cond_broadcast(opal_cond_t *cond)
 {
-    int ret = pthread_cond_broadcast(cond);
-    return 0 == ret ? OPAL_SUCCESS : OPAL_ERR_IN_ERRNO;
+    opal_thread_internal_cond_broadcast(cond);
+    return OPAL_SUCCESS;
 }
 
 int opal_cond_signal(opal_cond_t *cond)
 {
-    int ret = pthread_cond_signal(cond);
-    return 0 == ret ? OPAL_SUCCESS : OPAL_ERR_IN_ERRNO;
+    opal_thread_internal_cond_signal(cond);
+    return OPAL_SUCCESS;
 }
 
 int opal_cond_destroy(opal_cond_t *cond)
 {
-    int ret = pthread_cond_destroy(cond);
-    return 0 == ret ? OPAL_SUCCESS : OPAL_ERR_IN_ERRNO;
+    opal_thread_internal_cond_destroy(cond);
+    return OPAL_SUCCESS;
 }

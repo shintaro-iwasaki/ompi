@@ -207,7 +207,7 @@ static inline void opal_thread_internal_cond_destroy(opal_thread_internal_cond_t
 struct opal_mutex_t {
     opal_object_t super;
 
-    pthread_mutex_t m_lock_pthread;
+    opal_thread_internal_mutex_t m_lock_pthread;
 
 #if OPAL_ENABLE_DEBUG
     int m_lock_debug;
@@ -220,42 +220,38 @@ struct opal_mutex_t {
 OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_mutex_t);
 OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_recursive_mutex_t);
 
-#if defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP)
-#    define OPAL_PTHREAD_RECURSIVE_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-#elif defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER)
-#    define OPAL_PTHREAD_RECURSIVE_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER
-#endif
-
 #if OPAL_ENABLE_DEBUG
 #    define OPAL_MUTEX_STATIC_INIT                                                               \
         {                                                                                        \
             .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                                         \
-            .m_lock_pthread = PTHREAD_MUTEX_INITIALIZER, .m_lock_debug = 0, .m_lock_file = NULL, \
-            .m_lock_line = 0, .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                            \
+            .m_lock_pthread = OPAL_THREAD_INTERNAL_MUTEX_INITIALIZER, .m_lock_debug = 0,         \
+            .m_lock_file = NULL, .m_lock_line = 0, .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,       \
         }
 #else
 #    define OPAL_MUTEX_STATIC_INIT                                                               \
         {                                                                                        \
             .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                                         \
-            .m_lock_pthread = PTHREAD_MUTEX_INITIALIZER, .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT, \
+            .m_lock_pthread = OPAL_THREAD_INTERNAL_MUTEX_INITIALIZER,                            \
+            .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                                              \
         }
 #endif
 
-#if defined(OPAL_PTHREAD_RECURSIVE_MUTEX_INITIALIZER)
+#if defined(OPAL_THREAD_INTERNAL_RECURSIVE_MUTEX_INITIALIZER)
 
 #    if OPAL_ENABLE_DEBUG
 #        define OPAL_RECURSIVE_MUTEX_STATIC_INIT                                               \
             {                                                                                  \
                 .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                                   \
-                .m_lock_pthread = OPAL_PTHREAD_RECURSIVE_MUTEX_INITIALIZER, .m_lock_debug = 0, \
-                .m_lock_file = NULL, .m_lock_line = 0, .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT, \
+                .m_lock_pthread = OPAL_THREAD_INTERNAL_RECURSIVE_MUTEX_INITIALIZER,            \
+                .m_lock_debug = 0, .m_lock_file = NULL, .m_lock_line = 0,                      \
+                .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                                        \
             }
 #    else
-#        define OPAL_RECURSIVE_MUTEX_STATIC_INIT                            \
-            {                                                               \
-                .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                \
-                .m_lock_pthread = OPAL_PTHREAD_RECURSIVE_MUTEX_INITIALIZER, \
-                .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                     \
+#        define OPAL_RECURSIVE_MUTEX_STATIC_INIT                                               \
+            {                                                                                  \
+                .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                                   \
+                .m_lock_pthread = OPAL_THREAD_INTERNAL_RECURSIVE_MUTEX_INITIALIZER,            \
+                .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                                        \
             }
 #    endif
 
@@ -269,40 +265,17 @@ OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_recursive_mutex_t);
 
 static inline int opal_mutex_trylock(opal_mutex_t *m)
 {
-    int ret = pthread_mutex_trylock(&m->m_lock_pthread);
-    if (EDEADLK == ret) {
-#if OPAL_ENABLE_DEBUG
-        opal_output(0, "opal_mutex_trylock() %d", ret);
-#endif
-        return 1;
-    }
-    return 0 == ret ? 0 : 1;
+    return opal_thread_internal_mutex_trylock(&m->m_lock_pthread);
 }
 
 static inline void opal_mutex_lock(opal_mutex_t *m)
 {
-#if OPAL_ENABLE_DEBUG
-    int ret = pthread_mutex_lock(&m->m_lock_pthread);
-    if (EDEADLK == ret) {
-        errno = ret;
-        opal_output(0, "opal_mutex_lock() %d", ret);
-    }
-#else
-    pthread_mutex_lock(&m->m_lock_pthread);
-#endif
+    opal_thread_internal_mutex_lock(&m->m_lock_pthread);
 }
 
 static inline void opal_mutex_unlock(opal_mutex_t *m)
 {
-#if OPAL_ENABLE_DEBUG
-    int ret = pthread_mutex_unlock(&m->m_lock_pthread);
-    if (EPERM == ret) {
-        errno = ret;
-        opal_output(0, "opal_mutex_unlock() %d", ret);
-    }
-#else
-    pthread_mutex_unlock(&m->m_lock_pthread);
-#endif
+    opal_thread_internal_mutex_unlock(&m->m_lock_pthread);
 }
 
 /************************************************************************
@@ -355,8 +328,8 @@ static inline void opal_mutex_atomic_unlock(opal_mutex_t *m)
 
 #endif
 
-typedef pthread_cond_t opal_cond_t;
-#define OPAL_CONDITION_STATIC_INIT PTHREAD_COND_INITIALIZER
+typedef opal_thread_internal_cond_t opal_cond_t;
+#define OPAL_CONDITION_STATIC_INIT OPAL_THREAD_INTERNAL_COND_INITIALIZER
 
 int opal_cond_init(opal_cond_t *cond);
 int opal_cond_wait(opal_cond_t *cond, opal_mutex_t *lock);
