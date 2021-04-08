@@ -38,22 +38,6 @@
  */
 bool opal_uses_threads = false;
 
-struct opal_pthread_mutex_t {
-    opal_object_t super;
-
-    pthread_mutex_t m_lock_pthread;
-    opal_atomic_lock_t m_lock_atomic;
-
-#if OPAL_ENABLE_DEBUG
-    int m_lock_debug;
-    const char *m_lock_file;
-    int m_lock_line;
-#endif
-};
-
-typedef struct opal_pthread_mutex_t opal_pthread_mutex_t;
-typedef struct opal_pthread_mutex_t opal_pthread_recursive_mutex_t;
-
 static void mca_threads_pthreads_mutex_constructor(opal_mutex_t *p_mutex)
 {
     pthread_mutex_init(&p_mutex->m_lock_pthread, NULL);
