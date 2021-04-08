@@ -42,6 +42,125 @@
 
 BEGIN_C_DECLS
 
+typedef ABT_mutex_memory opal_thread_internal_mutex_t;
+
+#define OPAL_THREAD_INTERNAL_MUTEX_INITIALIZER ABT_MUTEX_INITIALIZER
+#define OPAL_THREAD_INTERNAL_RECURSIVE_MUTEX_INITIALIZER ABT_RECURSIVE_MUTEX_INITIALIZER
+
+static inline int opal_thread_internal_mutex_init(opal_thread_internal_mutex_t *p_mutex,
+                                                  bool recursive)
+{
+    if (recursive) {
+        const ABT_mutex_memory init_mutex = ABT_RECURSIVE_MUTEX_INITIALIZER;
+        memcpy(p_mutex, &init_mutex, sizeof(ABT_mutex_memory));
+    } else {
+        const ABT_mutex_memory init_mutex = ABT_MUTEX_INITIALIZER;
+        memcpy(p_mutex, &init_mutex, sizeof(ABT_mutex_memory));
+    }
+    return OPAL_SUCCESS;
+}
+
+static inline void opal_thread_internal_mutex_lock(opal_thread_internal_mutex_t *p_mutex)
+{
+    ABT_mutex mutex = ABT_MUTEX_MEMORY_GET_HANDLE(p_mutex);
+#if OPAL_ENABLE_DEBUG
+    int ret = ABT_mutex_lock(mutex);
+    if (ABT_SUCCESS != ret) {
+        opal_output(0, "opal_thread_internal_mutex_lock()");
+    }
+#else
+    ABT_mutex_lock(mutex);
+#endif
+}
+
+static inline int opal_thread_internal_mutex_trylock(opal_thread_internal_mutex_t *p_mutex)
+{
+    ABT_mutex mutex = ABT_MUTEX_MEMORY_GET_HANDLE(p_mutex);
+    int ret = ABT_mutex_trylock(mutex);
+    if (ABT_ERR_MUTEX_LOCKED == ret) {
+        return 1;
+    }  else if (ABT_SUCCESS != ret) {
+#if OPAL_ENABLE_DEBUG
+        opal_output(0, "opal_thread_internal_mutex_trylock()");
+#endif
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+static inline void opal_thread_internal_mutex_unlock(opal_thread_internal_mutex_t *p_mutex)
+{
+    ABT_mutex mutex = ABT_MUTEX_MEMORY_GET_HANDLE(p_mutex);
+#if OPAL_ENABLE_DEBUG
+    int ret = ABT_mutex_unlock(mutex);
+    if (ABT_SUCCESS != ret) {
+        opal_output(0, "opal_thread_internal_mutex_unlock()");
+    }
+#else
+    ABT_mutex_unlock(mutex);
+#endif
+    /* For fairness of locking. */
+    ABT_thread_yield();
+}
+
+static inline void opal_thread_internal_mutex_destroy(opal_thread_internal_mutex_t *p_mutex)
+{
+    /* No destructor is needed. */
+}
+
+typedef ABT_cond_memory opal_thread_internal_cond_t;
+
+#define OPAL_THREAD_INTERNAL_COND_INITIALIZER ABT_COND_INITIALIZER
+
+static inline int opal_thread_internal_cond_init(opal_thread_internal_cond_t *p_cond)
+{
+    const ABT_cond_memory init_cond = ABT_COND_INITIALIZER;
+    memcpy(cond, &init_cond, sizeof(ABT_cond_memory));
+    return OPAL_SUCCESS;
+}
+
+static inline void opal_thread_internal_cond_wait(opal_thread_internal_cond_t *p_cond,
+                                                  opal_thread_internal_mutex_t *p_mutex)
+{
+    ABT_mutex mutex = ABT_MUTEX_MEMORY_GET_HANDLE(p_mutex);
+    ABT_cond cond = ABT_COND_MEMORY_GET_HANDLE(p_cond);
+#if OPAL_ENABLE_DEBUG
+    int ret = ABT_cond_wait(cond, mutex);
+    assert(ABT_SUCCESS == ret);
+#else
+    ABT_cond_wait(cond, mutex);
+#endif
+    return OPAL_SUCCESS;
+}
+
+static inline void opal_thread_internal_cond_broadcast(opal_thread_internal_cond_t *p_cond)
+{
+    ABT_cond cond = ABT_COND_MEMORY_GET_HANDLE(p_cond);
+#if OPAL_ENABLE_DEBUG
+    int ret = ABT_cond_broadcast(cond);
+    assert(ABT_SUCCESS == ret);
+#else
+    ABT_cond_broadcast(cond);
+#endif
+}
+
+static inline void opal_thread_internal_cond_signal(opal_thread_internal_cond_t *p_cond)
+{
+    ABT_cond cond = ABT_COND_MEMORY_GET_HANDLE(p_cond);
+#if OPAL_ENABLE_DEBUG
+    int ret = ABT_cond_signal(cond);
+    assert(ABT_SUCCESS == ret);
+#else
+    ABT_cond_signal(cond);
+#endif
+}
+
+static inline void opal_thread_internal_cond_destroy(opal_thread_internal_cond_t *p_cond)
+{
+    /* No destructor is needed. */
+}
+
 struct opal_mutex_t {
     opal_object_t super;
 
