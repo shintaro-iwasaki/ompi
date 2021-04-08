@@ -30,7 +30,6 @@
 
 #include "opal/constants.h"
 #include "opal/mca/threads/mutex.h"
-#include "opal/mca/threads/pthreads/threads_pthreads_mutex.h"
 
 /*
  * Wait and see if some upper layer wants to use threads, if support
@@ -38,50 +37,49 @@
  */
 bool opal_uses_threads = false;
 
-static void mca_threads_pthreads_mutex_constructor(opal_mutex_t *p_mutex)
+static void mca_threads_mutex_constructor(opal_mutex_t *p_mutex)
 {
 #if OPAL_ENABLE_DEBUG
-    int ret = opal_thread_internal_mutex_init(&p_mutex->m_lock_pthread, false);
+    int ret = opal_thread_internal_mutex_init(&p_mutex->m_lock, false);
     assert(0 == ret);
     p_mutex->m_lock_debug = 0;
     p_mutex->m_lock_file = NULL;
     p_mutex->m_lock_line = 0;
 #else
-    opal_thread_internal_mutex_init(&p_mutex->m_lock_pthread, false);
+    opal_thread_internal_mutex_init(&p_mutex->m_lock, false);
 #endif
     opal_atomic_lock_init(&p_mutex->m_lock_atomic, 0);
 }
 
-static void mca_threads_pthreads_mutex_destructor(opal_mutex_t *p_mutex)
+static void mca_threads_mutex_destructor(opal_mutex_t *p_mutex)
 {
-    opal_thread_internal_mutex_destroy(&p_mutex->m_lock_pthread);
+    opal_thread_internal_mutex_destroy(&p_mutex->m_lock);
 }
 
-static void mca_threads_pthreads_recursive_mutex_constructor(opal_recursive_mutex_t *p_mutex)
+static void mca_threads_recursive_mutex_constructor(opal_recursive_mutex_t *p_mutex)
 {
 #if OPAL_ENABLE_DEBUG
-    int ret = opal_thread_internal_mutex_init(&p_mutex->m_lock_pthread, true);
+    int ret = opal_thread_internal_mutex_init(&p_mutex->m_lock, true);
     assert(0 == ret);
     p_mutex->m_lock_debug = 0;
     p_mutex->m_lock_file = NULL;
     p_mutex->m_lock_line = 0;
 #else
-    opal_thread_internal_mutex_init(&p_mutex->m_lock_pthread, true);
+    opal_thread_internal_mutex_init(&p_mutex->m_lock, true);
 #endif
     opal_atomic_lock_init(&p_mutex->m_lock_atomic, 0);
 }
 
-static void mca_threads_pthreads_recursive_mutex_destructor(opal_recursive_mutex_t *p_mutex)
+static void mca_threads_recursive_mutex_destructor(opal_recursive_mutex_t *p_mutex)
 {
-    opal_thread_internal_mutex_destroy(&p_mutex->m_lock_pthread);
+    opal_thread_internal_mutex_destroy(&p_mutex->m_lock);
 }
 
-OBJ_CLASS_INSTANCE(opal_mutex_t, opal_object_t, mca_threads_pthreads_mutex_constructor,
-                   mca_threads_pthreads_mutex_destructor);
+OBJ_CLASS_INSTANCE(opal_mutex_t, opal_object_t, mca_threads_mutex_constructor,
+                   mca_threads_mutex_destructor);
 
-OBJ_CLASS_INSTANCE(opal_recursive_mutex_t, opal_object_t,
-                   mca_threads_pthreads_recursive_mutex_constructor,
-                   mca_threads_pthreads_recursive_mutex_destructor);
+OBJ_CLASS_INSTANCE(opal_recursive_mutex_t, opal_object_t, mca_threads_recursive_mutex_constructor,
+                   mca_threads_recursive_mutex_destructor);
 
 int opal_cond_init(opal_cond_t *cond)
 {
@@ -90,7 +88,7 @@ int opal_cond_init(opal_cond_t *cond)
 
 int opal_cond_wait(opal_cond_t *cond, opal_mutex_t *lock)
 {
-    opal_thread_internal_cond_wait(cond, &lock->m_lock_pthread);
+    opal_thread_internal_cond_wait(cond, &lock->m_lock);
     return OPAL_SUCCESS;
 }
 

@@ -22,5 +22,6 @@ headers += \
         base/base.h
 
 libmca_threads_la_SOURCES += \
+        base/mutex.c \
         base/threads_base.c \
         base/tsd.c

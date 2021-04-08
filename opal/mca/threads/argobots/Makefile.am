@@ -25,7 +25,6 @@ sources = \
     threads_argobots_component.c \
     threads_argobots_condition.c \
     threads_argobots_module.c \
-    threads_argobots_mutex.c \
     threads_argobots_mutex.h \
     threads_argobots_threads.h \
     threads_argobots_tsd.h \
