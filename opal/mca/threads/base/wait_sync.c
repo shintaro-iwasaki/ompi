@@ -1,12 +1,13 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
- * Copyright (c) 2014-2020 The University of Tennessee and The University
+ * Copyright (c) 2014-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2016      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2017      IBM Corporation. All rights reserved.
  * Copyright (c) 2019      Sandia National Laboratories.  All rights reserved.
+ * Copyright (c) 2021      Argonne National Laboratory.  All rights reserved.
  *
  * $COPYRIGHT$
  *
@@ -118,6 +119,9 @@ check_status:
     while (sync->count > 0) { /* progress till completion */
         /* don't progress with the sync lock locked or you'll deadlock */
         opal_progress();
+        if (OPAL_THREAD_YIELD_WHEN_IDLE_DEFAULT) {
+            opal_thread_yield();
+        }
     }
     OPAL_THREAD_ADD_FETCH32(&num_thread_in_progress, -1);
 

@@ -27,9 +27,7 @@ sources = \
     threads_argobots_module.c \
     threads_argobots_mutex.h \
     threads_argobots_threads.h \
-    threads_argobots_tsd.h \
-    threads_argobots_wait_sync.c \
-    threads_argobots_wait_sync.h
+    threads_argobots_tsd.h
 
 #lib = libmca_threads_argobots.la
 lib_sources = $(sources)

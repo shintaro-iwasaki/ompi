@@ -27,7 +27,5 @@ libmca_threads_pthreads_la_SOURCES = \
     threads_pthreads_mutex.h \
     threads_pthreads_threads.h \
     threads_pthreads_tsd.h \
-    threads_pthreads_wait_sync.c \
-    threads_pthreads_wait_sync.h \
     threads_pthreads_yield.c \
     threads_pthreads.h

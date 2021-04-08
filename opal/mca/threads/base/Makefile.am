@@ -23,5 +23,6 @@ headers += \
 
 libmca_threads_la_SOURCES += \
         base/mutex.c \
+        base/wait_sync.c \
         base/threads_base.c \
         base/tsd.c
