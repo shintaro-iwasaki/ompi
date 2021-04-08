@@ -42,64 +42,73 @@ bool opal_uses_threads = false;
 
 static void mca_threads_argobots_mutex_constructor(opal_mutex_t *p_mutex)
 {
-    opal_threads_argobots_ensure_init();
-    const ABT_mutex_memory init_mutex = ABT_MUTEX_INITIALIZER;
-    memcpy(&p_mutex->m_lock_argobots, &init_mutex, sizeof(ABT_mutex_memory));
 #if OPAL_ENABLE_DEBUG
+    int ret = opal_thread_internal_mutex_init(&p_mutex->m_lock_argobots, false);
+    assert(0 == ret);
     p_mutex->m_lock_debug = 0;
     p_mutex->m_lock_file = NULL;
     p_mutex->m_lock_line = 0;
+#else
+    opal_thread_internal_mutex_init(&p_mutex->m_lock_argobots, false);
 #endif
     opal_atomic_lock_init(&p_mutex->m_lock_atomic, 0);
+}
+
+static void mca_threads_argobots_mutex_destructor(opal_mutex_t *p_mutex)
+{
+    opal_thread_internal_mutex_destroy(&p_mutex->m_lock_argobots);
 }
 
 static void mca_threads_argobots_recursive_mutex_constructor(opal_recursive_mutex_t *p_mutex)
 {
-    opal_threads_argobots_ensure_init();
-    const ABT_mutex_memory init_mutex = ABT_RECURSIVE_MUTEX_INITIALIZER;
-    memcpy(&p_mutex->m_lock_argobots, &init_mutex, sizeof(ABT_mutex_memory));
 #if OPAL_ENABLE_DEBUG
+    int ret = opal_thread_internal_mutex_init(&p_mutex->m_lock_argobots, true);
+    assert(0 == ret);
     p_mutex->m_lock_debug = 0;
     p_mutex->m_lock_file = NULL;
     p_mutex->m_lock_line = 0;
+#else
+    opal_thread_internal_mutex_init(&p_mutex->m_lock_argobots, true);
 #endif
     opal_atomic_lock_init(&p_mutex->m_lock_atomic, 0);
 }
 
-OBJ_CLASS_INSTANCE(opal_mutex_t, opal_object_t, mca_threads_argobots_mutex_constructor, NULL);
+static void mca_threads_argobots_recursive_mutex_destructor(opal_recursive_mutex_t *p_mutex)
+{
+    opal_thread_internal_mutex_destroy(&p_mutex->m_lock_argobots);
+}
+
+OBJ_CLASS_INSTANCE(opal_mutex_t, opal_object_t, mca_threads_argobots_mutex_constructor,
+                   mca_threads_argobots_mutex_destructor);
 OBJ_CLASS_INSTANCE(opal_recursive_mutex_t, opal_object_t,
-                   mca_threads_argobots_recursive_mutex_constructor, NULL);
+                   mca_threads_argobots_recursive_mutex_constructor,
+                   mca_threads_argobots_recursive_mutex_destructor);
 
 int opal_cond_init(opal_cond_t *cond)
 {
-    const ABT_cond_memory init_cond = ABT_COND_INITIALIZER;
-    memcpy(cond, &init_cond, sizeof(ABT_cond_memory));
-    return OPAL_SUCCESS;
+    return opal_thread_internal_cond_init(cond);
 }
 
 int opal_cond_wait(opal_cond_t *cond, opal_mutex_t *lock)
 {
-    ABT_mutex abt_mutex = ABT_MUTEX_MEMORY_GET_HANDLE(&lock->m_lock_argobots);
-    ABT_cond abt_cond = ABT_COND_MEMORY_GET_HANDLE(cond);
-    int ret = ABT_cond_wait(abt_cond, abt_mutex);
-    return ABT_SUCCESS == ret ? OPAL_SUCCESS : OPAL_ERROR;
+    opal_thread_internal_cond_wait(cond, &lock->m_lock_argobots);
+    return OPAL_SUCCESS;
 }
 
 int opal_cond_broadcast(opal_cond_t *cond)
 {
-    ABT_cond abt_cond = ABT_COND_MEMORY_GET_HANDLE(cond);
-    int ret = ABT_cond_broadcast(abt_cond);
-    return ABT_SUCCESS == ret ? OPAL_SUCCESS : OPAL_ERROR;
+    opal_thread_internal_cond_broadcast(cond);
+    return OPAL_SUCCESS;
 }
 
 int opal_cond_signal(opal_cond_t *cond)
 {
-    ABT_cond abt_cond = ABT_COND_MEMORY_GET_HANDLE(cond);
-    int ret = ABT_cond_signal(abt_cond);
-    return ABT_SUCCESS == ret ? OPAL_SUCCESS : OPAL_ERROR;
+    opal_thread_internal_cond_signal(cond);
+    return OPAL_SUCCESS;
 }
 
 int opal_cond_destroy(opal_cond_t *cond)
 {
+    opal_thread_internal_cond_destroy(cond);
     return OPAL_SUCCESS;
 }

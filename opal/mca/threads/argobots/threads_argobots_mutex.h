@@ -164,7 +164,7 @@ static inline void opal_thread_internal_cond_destroy(opal_thread_internal_cond_t
 struct opal_mutex_t {
     opal_object_t super;
 
-    ABT_mutex_memory m_lock_argobots;
+    opal_thread_internal_mutex_t m_lock_argobots;
 
 #if OPAL_ENABLE_DEBUG
     int m_lock_debug;
@@ -181,14 +181,16 @@ OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_recursive_mutex_t);
 #if OPAL_ENABLE_DEBUG
 #    define OPAL_MUTEX_STATIC_INIT                                                                 \
         {                                                                                          \
-            .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t), .m_lock_argobots = ABT_MUTEX_INITIALIZER, \
+            .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                                           \
+            .m_lock_argobots = OPAL_THREAD_INTERNAL_MUTEX_INITIALIZER,                             \
             .m_lock_debug = 0, .m_lock_file = NULL, .m_lock_line = 0,                              \
             .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                                                \
         }
 #else
 #    define OPAL_MUTEX_STATIC_INIT                                                                 \
         {                                                                                          \
-            .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t), .m_lock_argobots = ABT_MUTEX_INITIALIZER, \
+            .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                                           \
+            .m_lock_argobots = OPAL_THREAD_INTERNAL_MUTEX_INITIALIZER,                             \
             .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                                                \
         }
 #endif
@@ -197,7 +199,7 @@ OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_recursive_mutex_t);
 #    define OPAL_RECURSIVE_MUTEX_STATIC_INIT                                      \
         {                                                                         \
             .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                          \
-            .m_lock_argobots = ABT_RECURSIVE_MUTEX_INITIALIZER,                   \
+            .m_lock_argobots = OPAL_THREAD_INTERNAL_RECURSIVE_MUTEX_INITIALIZER,  \
             .m_lock_debug = 0, .m_lock_file = NULL, .m_lock_line = 0,             \
             .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                               \
         }
@@ -205,7 +207,7 @@ OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_recursive_mutex_t);
 #    define OPAL_RECURSIVE_MUTEX_STATIC_INIT                                      \
         {                                                                         \
             .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                          \
-            .m_lock_argobots = ABT_RECURSIVE_MUTEX_INITIALIZER,                   \
+            .m_lock_argobots = OPAL_THREAD_INTERNAL_RECURSIVE_MUTEX_INITIALIZER,  \
             .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                               \
         }
 #endif
@@ -218,45 +220,17 @@ OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_recursive_mutex_t);
 
 static inline int opal_mutex_trylock(opal_mutex_t *m)
 {
-    ABT_mutex mutex = ABT_MUTEX_MEMORY_GET_HANDLE(&m->m_lock_argobots);
-    int ret = ABT_mutex_trylock(mutex);
-    if (ABT_ERR_MUTEX_LOCKED == ret) {
-        return 1;
-    } else if (ABT_SUCCESS != ret) {
-#if OPAL_ENABLE_DEBUG
-        opal_output(0, "opal_mutex_trylock()");
-#endif
-        return 1;
-    }
-    return 0;
+    return opal_thread_internal_mutex_trylock(&m->m_lock_argobots);
 }
 
 static inline void opal_mutex_lock(opal_mutex_t *m)
 {
-    ABT_mutex mutex = ABT_MUTEX_MEMORY_GET_HANDLE(&m->m_lock_argobots);
-#if OPAL_ENABLE_DEBUG
-    int ret = ABT_mutex_lock(mutex);
-    if (ABT_SUCCESS != ret) {
-        opal_output(0, "opal_mutex_lock()");
-    }
-#else
-    ABT_mutex_lock(mutex);
-#endif
+    opal_thread_internal_mutex_lock(&m->m_lock_argobots);
 }
 
 static inline void opal_mutex_unlock(opal_mutex_t *m)
 {
-    ABT_mutex mutex = ABT_MUTEX_MEMORY_GET_HANDLE(&m->m_lock_argobots);
-#if OPAL_ENABLE_DEBUG
-    int ret = ABT_mutex_unlock(mutex);
-    if (ABT_SUCCESS != ret) {
-        opal_output(0, "opal_mutex_unlock()");
-    }
-#else
-    ABT_mutex_unlock(mutex);
-#endif
-    /* For fairness of locking. */
-    ABT_thread_yield();
+    opal_thread_internal_mutex_unlock(&m->m_lock_argobots);
 }
 
 /************************************************************************
@@ -309,8 +283,8 @@ static inline void opal_mutex_atomic_unlock(opal_mutex_t *m)
 
 #endif
 
-typedef ABT_cond_memory opal_cond_t;
-#define OPAL_CONDITION_STATIC_INIT ABT_COND_INITIALIZER
+typedef opal_thread_internal_cond_t opal_cond_t;
+#define OPAL_CONDITION_STATIC_INIT OPAL_THREAD_INTERNAL_COND_INITIALIZER
 
 int opal_cond_init(opal_cond_t *cond);
 int opal_cond_wait(opal_cond_t *cond, opal_mutex_t *lock);

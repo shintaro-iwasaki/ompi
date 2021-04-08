@@ -28,12 +28,13 @@
 #define OPAL_MCA_THREADS_ARGOBOTS_THREADS_ARGOBOTS_WAIT_SYNC_H
 
 #include "opal/mca/threads/argobots/threads_argobots.h"
+#include "opal/mca/threads/argobots/threads_argobots_mutex.h"
 
 typedef struct ompi_wait_sync_t {
     opal_atomic_int32_t count;
     int32_t status;
-    ABT_cond condition;
-    ABT_mutex lock;
+    opal_thread_internal_cond_t condition;
+    opal_thread_internal_mutex_t lock;
     struct ompi_wait_sync_t *next;
     struct ompi_wait_sync_t *prev;
     volatile bool signaling;
@@ -49,28 +50,27 @@ typedef struct ompi_wait_sync_t {
  * as possible. Note that the race window is small so spinning here
  * is more optimal than sleeping since this macro is called in
  * the critical path. */
-#define WAIT_SYNC_RELEASE(sync)            \
-    if (opal_using_threads()) {            \
-        while ((sync)->signaling) {        \
-            ABT_thread_yield();            \
-            continue;                      \
-        }                                  \
-        ABT_cond_free(&(sync)->condition); \
-        ABT_mutex_free(&(sync)->lock);     \
+#define WAIT_SYNC_RELEASE(sync)                                \
+    if (opal_using_threads()) {                                \
+        while ((sync)->signaling) {                            \
+            continue;                                          \
+        }                                                      \
+        opal_thread_internal_cond_destroy(&(sync)->condition); \
+        opal_thread_internal_mutex_destroy(&(sync)->lock);     \
     }
 
-#define WAIT_SYNC_RELEASE_NOWAIT(sync)     \
-    if (opal_using_threads()) {            \
-        ABT_cond_free(&(sync)->condition); \
-        ABT_mutex_free(&(sync)->lock);     \
+#define WAIT_SYNC_RELEASE_NOWAIT(sync)                         \
+    if (opal_using_threads()) {                                \
+        opal_thread_internal_cond_destroy(&(sync)->condition); \
+        opal_thread_internal_mutex_destroy(&(sync)->lock);     \
     }
 
-#define WAIT_SYNC_SIGNAL(sync)            \
-    if (opal_using_threads()) {           \
-        ABT_mutex_lock(sync->lock);       \
-        ABT_cond_signal(sync->condition); \
-        ABT_mutex_unlock(sync->lock);     \
-        sync->signaling = false;          \
+#define WAIT_SYNC_SIGNAL(sync)                              \
+    if (opal_using_threads()) {                             \
+        opal_thread_internal_mutex_lock(&(sync->lock));     \
+        opal_thread_internal_cond_signal(&sync->condition); \
+        opal_thread_internal_mutex_unlock(&(sync->lock));   \
+        sync->signaling = false;                            \
     }
 
 #define WAIT_SYNC_SIGNALLED(sync)  \
@@ -97,17 +97,17 @@ static inline int sync_wait_st(ompi_wait_sync_t *sync)
     return sync->status;
 }
 
-#define WAIT_SYNC_INIT(sync, c)                  \
-    do {                                         \
-        (sync)->count = (c);                     \
-        (sync)->next = NULL;                     \
-        (sync)->prev = NULL;                     \
-        (sync)->status = 0;                      \
-        (sync)->signaling = (0 != (c));          \
-        if (opal_using_threads()) {              \
-            ABT_cond_create(&(sync)->condition); \
-            ABT_mutex_create(&(sync)->lock);     \
-        }                                        \
+#define WAIT_SYNC_INIT(sync, c)                                    \
+    do {                                                           \
+        (sync)->count = (c);                                       \
+        (sync)->next = NULL;                                       \
+        (sync)->prev = NULL;                                       \
+        (sync)->status = 0;                                        \
+        (sync)->signaling = (0 != (c));                            \
+        if (opal_using_threads()) {                                \
+            opal_thread_internal_cond_init(&(sync)->condition);    \
+            opal_thread_internal_mutex_init(&(sync)->lock, false); \
+        }                                                          \
     } while (0)
 
 /**
