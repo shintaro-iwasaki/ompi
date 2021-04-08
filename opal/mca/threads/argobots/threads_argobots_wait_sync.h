@@ -78,13 +78,22 @@ typedef struct ompi_wait_sync_t {
         (sync)->signaling = false; \
     }
 
+/* not static for inline "wait_sync_st" */
+OPAL_DECLSPEC extern ompi_wait_sync_t *wait_sync_list;
+
 OPAL_DECLSPEC int ompi_sync_wait_mt(ompi_wait_sync_t *sync);
 static inline int sync_wait_st(ompi_wait_sync_t *sync)
 {
+    assert(NULL == wait_sync_list);
+    assert(NULL == sync->next);
+    wait_sync_list = sync;
+
     while (sync->count > 0) {
         opal_progress();
         ABT_thread_yield();
     }
+    wait_sync_list = NULL;
+
     return sync->status;
 }
 

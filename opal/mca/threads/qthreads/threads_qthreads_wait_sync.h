@@ -76,13 +76,22 @@ typedef struct ompi_wait_sync_t {
         (sync)->signaling = false; \
     }
 
+/* not static for inline "wait_sync_st" */
+OPAL_DECLSPEC extern ompi_wait_sync_t *wait_sync_list;
+
 OPAL_DECLSPEC int ompi_sync_wait_mt(ompi_wait_sync_t *sync);
 static inline int sync_wait_st(ompi_wait_sync_t *sync)
 {
+    assert(NULL == wait_sync_list);
+    assert(NULL == sync->next);
+    wait_sync_list = sync;
+
     while (sync->count > 0) {
         opal_progress();
         qthread_yield();
     }
+    wait_sync_list = NULL;
+
     return sync->status;
 }
 
@@ -98,5 +107,15 @@ static inline int sync_wait_st(ompi_wait_sync_t *sync)
             opal_mutex_create(&(sync)->lock);   \
         }                                       \
     } while (0)
+
+/**
+ * Wake up all syncs with a particular status. If status is OMPI_SUCCESS this
+ * operation is a NO-OP. Otherwise it will trigger the "error condition" from
+ * all registered sync.
+ */
+OPAL_DECLSPEC void wait_sync_global_wakeup_st(int status);
+OPAL_DECLSPEC void wait_sync_global_wakeup_mt(int status);
+#define wait_sync_global_wakeup(st) \
+    (opal_using_threads() ? wait_sync_global_wakeup_mt(st) : wait_sync_global_wakeup_st(st))
 
 #endif /* OPAL_MCA_THREADS_QTHREADS_THREADS_QTHREADS_WAIT_SYNC_H */
