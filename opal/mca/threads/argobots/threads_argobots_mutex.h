@@ -33,12 +33,14 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "opal/class/opal_object.h"
 #include "opal/mca/threads/argobots/threads_argobots.h"
 #include "opal/mca/threads/mutex.h"
 #include "opal/sys/atomic.h"
 #include "opal/util/output.h"
+#include "opal/constants.h"
 
 BEGIN_C_DECLS
 
@@ -116,7 +118,7 @@ typedef ABT_cond_memory opal_thread_internal_cond_t;
 static inline int opal_thread_internal_cond_init(opal_thread_internal_cond_t *p_cond)
 {
     const ABT_cond_memory init_cond = ABT_COND_INITIALIZER;
-    memcpy(cond, &init_cond, sizeof(ABT_cond_memory));
+    memcpy(p_cond, &init_cond, sizeof(ABT_cond_memory));
     return OPAL_SUCCESS;
 }
 
@@ -131,7 +133,6 @@ static inline void opal_thread_internal_cond_wait(opal_thread_internal_cond_t *p
 #else
     ABT_cond_wait(cond, mutex);
 #endif
-    return OPAL_SUCCESS;
 }
 
 static inline void opal_thread_internal_cond_broadcast(opal_thread_internal_cond_t *p_cond)
