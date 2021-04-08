@@ -46,7 +46,6 @@ struct opal_mutex_t {
     opal_object_t super;
 
     ABT_mutex_memory m_lock_argobots;
-    int m_recursive;
 
 #if OPAL_ENABLE_DEBUG
     int m_lock_debug;
@@ -64,14 +63,14 @@ OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_recursive_mutex_t);
 #    define OPAL_MUTEX_STATIC_INIT                                                                 \
         {                                                                                          \
             .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t), .m_lock_argobots = ABT_MUTEX_INITIALIZER, \
-            .m_recursive = 0, .m_lock_debug = 0, .m_lock_file = NULL, .m_lock_line = 0,            \
+            .m_lock_debug = 0, .m_lock_file = NULL, .m_lock_line = 0,                              \
             .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                                                \
         }
 #else
 #    define OPAL_MUTEX_STATIC_INIT                                                                 \
         {                                                                                          \
             .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t), .m_lock_argobots = ABT_MUTEX_INITIALIZER, \
-            .m_recursive = 0, .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                              \
+            .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                                                \
         }
 #endif
 
@@ -79,7 +78,7 @@ OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_recursive_mutex_t);
 #    define OPAL_RECURSIVE_MUTEX_STATIC_INIT                                      \
         {                                                                         \
             .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                          \
-            .m_lock_argobots = ABT_RECURSIVE_MUTEX_INITIALIZER, .m_recursive = 1, \
+            .m_lock_argobots = ABT_RECURSIVE_MUTEX_INITIALIZER,                   \
             .m_lock_debug = 0, .m_lock_file = NULL, .m_lock_line = 0,             \
             .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                               \
         }
@@ -87,7 +86,7 @@ OPAL_DECLSPEC OBJ_CLASS_DECLARATION(opal_recursive_mutex_t);
 #    define OPAL_RECURSIVE_MUTEX_STATIC_INIT                                      \
         {                                                                         \
             .super = OPAL_OBJ_STATIC_INIT(opal_mutex_t),                          \
-            .m_lock_argobots = ABT_RECURSIVE_MUTEX_INITIALIZER, .m_recursive = 1, \
+            .m_lock_argobots = ABT_RECURSIVE_MUTEX_INITIALIZER,                   \
             .m_lock_atomic = OPAL_ATOMIC_LOCK_INIT,                               \
         }
 #endif

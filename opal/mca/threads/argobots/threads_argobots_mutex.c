@@ -45,7 +45,6 @@ static void mca_threads_argobots_mutex_constructor(opal_mutex_t *p_mutex)
     opal_threads_argobots_ensure_init();
     const ABT_mutex_memory init_mutex = ABT_MUTEX_INITIALIZER;
     memcpy(&p_mutex->m_lock_argobots, &init_mutex, sizeof(ABT_mutex_memory));
-    p_mutex->m_recursive = 0;
 #if OPAL_ENABLE_DEBUG
     p_mutex->m_lock_debug = 0;
     p_mutex->m_lock_file = NULL;
@@ -59,7 +58,6 @@ static void mca_threads_argobots_recursive_mutex_constructor(opal_recursive_mute
     opal_threads_argobots_ensure_init();
     const ABT_mutex_memory init_mutex = ABT_RECURSIVE_MUTEX_INITIALIZER;
     memcpy(&p_mutex->m_lock_argobots, &init_mutex, sizeof(ABT_mutex_memory));
-    p_mutex->m_recursive = 1;
 #if OPAL_ENABLE_DEBUG
     p_mutex->m_lock_debug = 0;
     p_mutex->m_lock_file = NULL;
