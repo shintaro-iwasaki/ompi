@@ -36,30 +36,46 @@ bool opal_uses_threads = false;
 
 static void opal_mutex_construct(opal_mutex_t *m)
 {
-     opal_mutex_create(m);
+#if OPAL_ENABLE_DEBUG
+    int ret = opal_thread_internal_mutex_init(&m->m_lock, false);
+    assert(0 == ret);
+    m->m_lock_debug = 0;
+    m->m_lock_file = NULL;
+    m->m_lock_line = 0;
+#else
+    opal_thread_internal_mutex_init(&m->m_lock, false);
+#endif
+    opal_atomic_lock_init(&m->m_lock_atomic, 0);
 }
 
 static void opal_mutex_destruct(opal_mutex_t *m)
 {
+    opal_thread_internal_mutex_destroy(&m->m_lock);
 }
 
-static void opal_recursive_mutex_construct(opal_mutex_t *m)
+static void opal_recursive_mutex_construct(opal_recursive_mutex_t *m)
 {
-    opal_mutex_recursive_create(m);
+#if OPAL_ENABLE_DEBUG
+    int ret = opal_thread_internal_mutex_init(&m->m_lock, true);
+    assert(0 == ret);
+    m->m_lock_debug = 0;
+    m->m_lock_file = NULL;
+    m->m_lock_line = 0;
+#else
+    opal_thread_internal_mutex_init(&m->m_lock, true);
+#endif
+    opal_atomic_lock_init(&m->m_lock_atomic, 0);
 }
 
 static void opal_recursive_mutex_destruct(opal_mutex_t *m)
 {
+    opal_thread_internal_mutex_destroy(&m->m_lock);
 }
 
 OBJ_CLASS_INSTANCE(opal_mutex_t,
                    opal_object_t,
                    opal_mutex_construct,
                    opal_mutex_destruct);
-
-static void opal_recursive_mutex_construct(opal_recursive_mutex_t *m)
-{
-}
 
 OBJ_CLASS_INSTANCE(opal_recursive_mutex_t,
                    opal_object_t,
@@ -68,80 +84,29 @@ OBJ_CLASS_INSTANCE(opal_recursive_mutex_t,
 
 int opal_cond_init(opal_cond_t *cond)
 {
-    opal_atomic_lock_init(&cond->m_lock, 0);
-    cond->m_waiter_head = NULL;
-    cond->m_waiter_tail = NULL;
-    return OPAL_SUCCESS;
+    return opal_thread_internal_cond_init(cond);
 }
-
-typedef struct {
-    int m_signaled;
-    void * m_prev;
-} cond_waiter_t;
 
 int opal_cond_wait(opal_cond_t *cond, opal_mutex_t *lock)
 {
-    opal_threads_ensure_init_qthreads();
-    /* This thread is taking "lock", so only this thread can access this
-     * condition variable.  */
-    opal_atomic_lock(&cond->m_lock);
-    cond_waiter_t waiter = {0, NULL};
-    if (NULL == cond->m_waiter_head) {
-        cond->m_waiter_tail = (void *)&waiter;
-    } else {
-        ((cond_waiter_t *)cond->m_waiter_head)->m_prev = (void *)&waiter;
-    }
-    cond->m_waiter_head = (void *)&waiter;
-    opal_atomic_unlock(&cond->m_lock);
-
-    while (1) {
-        opal_mutex_unlock(lock);
-        qthread_yield();
-        opal_mutex_lock(lock);
-        /* Check if someone woke me up. */
-        opal_atomic_lock(&cond->m_lock);
-        int signaled = waiter.m_signaled;
-        opal_atomic_unlock(&cond->m_lock);
-        if (1 == signaled) {
-            break;
-        }
-        /* Unlock the lock again. */
-    }
+    opal_thread_internal_cond_wait(cond, &lock->m_lock);
     return OPAL_SUCCESS;
 }
 
 int opal_cond_broadcast(opal_cond_t *cond)
 {
-    opal_atomic_lock(&cond->m_lock);
-    while (NULL != cond->m_waiter_tail) {
-        cond_waiter_t *p_cur_tail = (cond_waiter_t *)cond->m_waiter_tail;
-        cond->m_waiter_tail = p_cur_tail->m_prev;
-        /* Awaken one of threads in a FIFO manner. */
-        p_cur_tail->m_signaled = 1;
-    }
-    /* No waiters. */
-    cond->m_waiter_head = NULL;
-    opal_atomic_unlock(&cond->m_lock);
+    opal_thread_internal_cond_broadcast(cond);
     return OPAL_SUCCESS;
 }
 
 int opal_cond_signal(opal_cond_t *cond)
 {
-    opal_atomic_lock(&cond->m_lock);
-    if (NULL != cond->m_waiter_tail) {
-        cond_waiter_t *p_cur_tail = (cond_waiter_t *)cond->m_waiter_tail;
-        cond->m_waiter_tail = p_cur_tail->m_prev;
-        /* Awaken one of threads. */
-        p_cur_tail->m_signaled = 1;
-        if (NULL == cond->m_waiter_tail) {
-            cond->m_waiter_head = NULL;
-        }
-    }
-    opal_atomic_unlock(&cond->m_lock);
+    opal_thread_internal_cond_signal(cond);
     return OPAL_SUCCESS;
 }
 
 int opal_cond_destroy(opal_cond_t *cond)
 {
+    opal_thread_internal_cond_destroy(cond);
     return OPAL_SUCCESS;
 }

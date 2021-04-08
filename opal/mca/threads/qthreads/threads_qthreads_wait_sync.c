@@ -49,11 +49,11 @@ void wait_sync_global_wakeup_mt(int status)
 
 static opal_atomic_int32_t num_thread_in_progress = 0;
 
-#define WAIT_SYNC_PASS_OWNERSHIP(who)        \
-    do {                                     \
-        opal_mutex_lock(&(who)->lock);       \
-        opal_cond_signal(&(who)->condition); \
-        opal_mutex_unlock(&(who)->lock);     \
+#define WAIT_SYNC_PASS_OWNERSHIP(who)                        \
+    do {                                                     \
+        opal_thread_internal_mutex_lock(&(who)->lock);       \
+        opal_thread_internal_cond_signal(&(who)->condition); \
+        opal_thread_internal_mutex_unlock(&(who)->lock);     \
     } while (0)
 
 int ompi_sync_wait_mt(ompi_wait_sync_t *sync)
@@ -67,13 +67,13 @@ int ompi_sync_wait_mt(ompi_wait_sync_t *sync)
     }
 
     /* lock so nobody can signal us during the list updating */
-    opal_mutex_lock(&sync->lock);
+    opal_thread_internal_mutex_lock(&sync->lock);
 
     /* Now that we hold the lock make sure another thread has not already
      * call cond_signal.
      */
     if (sync->count <= 0) {
-        opal_mutex_unlock(&sync->lock);
+        opal_thread_internal_mutex_unlock(&sync->lock);
         return (0 == sync->status) ? OPAL_SUCCESS : OPAL_ERROR;
     }
 
@@ -98,7 +98,7 @@ int ompi_sync_wait_mt(ompi_wait_sync_t *sync)
      */
 check_status:
     if (sync != wait_sync_list && num_thread_in_progress >= opal_max_thread_in_progress) {
-        opal_cond_wait(&sync->condition, &sync->lock);
+        opal_thread_internal_cond_wait(&sync->condition, &sync->lock);
 
         /**
          * At this point either the sync was completed in which case
@@ -107,13 +107,13 @@ check_status:
          */
 
         if (sync->count <= 0) { /* Completed? */
-            opal_mutex_unlock(&sync->lock);
+            opal_thread_internal_mutex_unlock(&sync->lock);
             goto i_am_done;
         }
         /* either promoted, or spurious wakeup ! */
         goto check_status;
     }
-    opal_mutex_unlock(&sync->lock);
+    opal_thread_internal_mutex_unlock(&sync->lock);
 
     OPAL_THREAD_ADD_FETCH32(&num_thread_in_progress, 1);
     while (sync->count > 0) { /* progress till completion */
